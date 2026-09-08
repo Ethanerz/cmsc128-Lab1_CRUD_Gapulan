@@ -60,4 +60,47 @@ taskList.addEventListener('click', async (e) => {
             loadTasks();
         }
     }
+
+    if (e.target.classList.contains('save-btn')) {
+        const li = e.target.closest('.task');
+        const taskId = li.dataset.id;
+
+        const updatedTask = {
+            title: li.querySelector('.edit-title').value,
+            due_datetime: li.querySelector('.edit-due').value,
+            priority: li.querySelector('.edit-priority').value,
+            tag: li.querySelector('.edit-tag').value
+        };
+
+        await fetch(`/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedTask)
+        });
+
+        loadTasks();
+    }
+	if (e.target.classList.contains('edit-btn')) {
+    const li = e.target.closest('.task');
+    const title = li.querySelector('.task-title').textContent;
+    const due = li.querySelector('.task-due').textContent;
+    const tag = li.querySelector('.task-tag').textContent;
+
+    li.innerHTML = `
+        <input type="text" class="edit-title" value="${title}">
+        <input type="datetime-local" class="edit-due" value="${due}">
+        <select class="edit-priority">
+            <option value="Low">Low</option>
+            <option value="Med">Med</option>
+            <option value="High">High</option>
+        </select>
+        <select class="edit-tag">
+            <option value="School">School</option>
+            <option value="Personal">Personal</option>
+            <option value="Others">Others</option>
+        </select>
+        <button class="save-btn">Save</button>
+    `;
+}
 });
+
