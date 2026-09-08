@@ -1,0 +1,36 @@
+body {
+    font-family: sans-serif;
+    max-width: 600px;
+    margin: 40px auto;
+}
+
+#task-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+#task-list {
+    list-style: none;
+    padding: 0;
+}
+
+.task {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.task.done .task-title {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.priority-high { border-left: 4px solid #e74c3c; }
+.priority-med  { border-left: 4px solid #f39c12; }
+.priority-low  { border-left: 4px solid #2ecc71; }
