@@ -1,7 +1,13 @@
+import os
 import sqlite3
-from flask import Flask, request, jsonify, render_template
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from werkzeug.security import generate_password_hash
+
+load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY')
 
 def get_db():
     conn = sqlite3.connect('todo.db')
@@ -51,6 +57,34 @@ def delete_task(task_id):
     conn.commit()
     conn.close()
     return jsonify({'message': 'Task deleted'})
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        display_name = request.form.get('display_name', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not display_name or not password:
+            return render_template('register.html', error='All fields are required.')
+
+        password_hash = generate_password_hash(password)
+
+        conn = get_db()
+        try:
+            conn.execute('''
+                INSERT INTO users (username, display_name, password_hash)
+                VALUES (?, ?, ?)
+            ''', (username, display_name, password_hash))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            conn.close()
+            return render_template('register.html', error='That username is already taken.')
+        conn.close()
+
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
