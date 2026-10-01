@@ -7,9 +7,21 @@
 </head>
 <body>
 	<h1>To-Do List</h1>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p role="status">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
     <nav>
-        <a href="{{ url_for('login') }}">Log In</a>
-        <a href="{{ url_for('register') }}">Register</a>
+        {% if session.get('user_id') %}
+            <p>Hello, {{ session.get('display_name') }}!</p>
+            <form method="POST" action="{{ url_for('logout') }}">
+                <button type="submit">Log Out</button>
+            </form>
+        {% else %}
+            <a href="{{ url_for('login') }}">Log In</a>
+            <a href="{{ url_for('register') }}">Register</a>
+        {% endif %}
     </nav>
     <form id="task-form">
 		<input type="text" id="title" placeholder="Task title" required>

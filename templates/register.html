@@ -7,17 +7,17 @@
 <body>
     <h1>Create an Account</h1>
     {% if error %}
-        <p>{{ error }}</p>
+        <p role="alert">{{ error }}</p>
     {% endif %}
     <form method="POST" action="{{ url_for('register') }}">
         <label for="username">Username</label>
-        <input type="text" id="username" name="username" required>
+        <input type="text" id="username" name="username" value="{{ username|default('') }}" autocomplete="username" required>
         <br>
         <label for="display_name">Display name</label>
-        <input type="text" id="display_name" name="display_name" required>
+        <input type="text" id="display_name" name="display_name" value="{{ display_name|default('') }}" autocomplete="name" required>
         <br>
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required>
+        <input type="password" id="password" name="password" autocomplete="new-password" required>
         <br>
         <button type="submit">Register</button>
     </form>

@@ -6,8 +6,13 @@
 </head>
 <body>
     <h1>Log In</h1>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p role="status">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
     {% if error %}
-        <p>{{ error }}</p>
+        <p role="alert">{{ error }}</p>
     {% endif %}
     <form method="POST" action="{{ url_for('login') }}">
         <label for="username">Username</label>

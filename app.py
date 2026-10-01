@@ -1,13 +1,17 @@
 import os
 import sqlite3
+from datetime import timedelta
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, flash, request, jsonify, render_template, session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key:
+    raise RuntimeError('SECRET_KEY must be set in the .env file.')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 def get_db():
     conn = sqlite3.connect('todo.db')
@@ -16,6 +20,8 @@ def get_db():
 
 @app.route('/')
 def index():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/tasks', methods=['GET'])
@@ -66,7 +72,12 @@ def register():
         password = request.form.get('password', '')
 
         if not username or not display_name or not password:
-            return render_template('register.html', error='All fields are required.')
+            return render_template(
+                'register.html',
+                error='All fields are required.',
+                username=username,
+                display_name=display_name
+            )
 
         password_hash = generate_password_hash(password)
 
@@ -78,10 +89,17 @@ def register():
             ''', (username, display_name, password_hash))
             conn.commit()
         except sqlite3.IntegrityError:
+            conn.rollback()
+            return render_template(
+                'register.html',
+                error='That username is already taken.',
+                username=username,
+                display_name=display_name
+            )
+        finally:
             conn.close()
-            return render_template('register.html', error='That username is already taken.')
-        conn.close()
 
+        flash('Your account was created. Please log in.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
@@ -105,11 +123,19 @@ def login():
         if user is None or not check_password_hash(user['password_hash'], password):
             return render_template('login.html', error='Invalid username or password.')
 
+        session.clear()
+        session.permanent = True
         session['user_id'] = user['id']
         session['display_name'] = user['display_name']
         return redirect(url_for('index'))
 
     return render_template('login.html')
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'success')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True)
