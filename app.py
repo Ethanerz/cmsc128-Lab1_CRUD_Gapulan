@@ -144,6 +144,83 @@ def login():
 
     return render_template('login.html')
 
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db()
+    try:
+        user = conn.execute(
+            'SELECT id, username, display_name, password_hash FROM users WHERE id = ?',
+            (session['user_id'],)
+        ).fetchone()
+
+        if user is None:
+            session.clear()
+            return redirect(url_for('login'))
+
+        if request.method == 'POST':
+            username = request.form.get('username', '').strip()
+            display_name = request.form.get('display_name', '').strip()
+            current_password = request.form.get('current_password', '')
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+
+            error = None
+            if not username or not display_name or not current_password:
+                error = 'Username, display name, and current password are required.'
+            elif not check_password_hash(user['password_hash'], current_password):
+                error = 'Current password is incorrect.'
+            elif new_password and len(new_password) < 8:
+                error = 'New password must be at least 8 characters long.'
+            elif new_password != confirm_password:
+                error = 'New password and confirmation do not match.'
+
+            if error:
+                return render_template('profile.html', user=user, error=error)
+
+            existing_user = conn.execute(
+                'SELECT id FROM users WHERE username = ? AND id != ?',
+                (username, user['id'])
+            ).fetchone()
+            if existing_user:
+                return render_template(
+                    'profile.html',
+                    user=user,
+                    error='That username is already taken.'
+                )
+
+            try:
+                if new_password:
+                    conn.execute(
+                        '''UPDATE users
+                           SET username = ?, display_name = ?, password_hash = ?
+                           WHERE id = ?''',
+                        (username, display_name, generate_password_hash(new_password), user['id'])
+                    )
+                else:
+                    conn.execute(
+                        'UPDATE users SET username = ?, display_name = ? WHERE id = ?',
+                        (username, display_name, user['id'])
+                    )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                conn.rollback()
+                return render_template(
+                    'profile.html',
+                    user=user,
+                    error='That username is already taken.'
+                )
+
+            session['display_name'] = display_name
+            flash('Your profile has been updated.', 'success')
+            return redirect(url_for('profile'))
+
+        return render_template('profile.html', user=user)
+    finally:
+        conn.close()
+
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()

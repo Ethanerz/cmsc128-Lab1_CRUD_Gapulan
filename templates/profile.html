@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Profile</title>
+</head>
+<body>
+    <h1>Profile</h1>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p role="status">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+    {% if error %}
+        <p role="alert">{{ error }}</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('profile') }}">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" value="{{ user['username'] }}" autocomplete="username" required>
+        <br>
+        <label for="display_name">Display name</label>
+        <input type="text" id="display_name" name="display_name" value="{{ user['display_name'] }}" autocomplete="name" required>
+        <br>
+        <label for="current_password">Current password</label>
+        <input type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+        <br>
+        <label for="new_password">New password (leave blank to keep current password)</label>
+        <input type="password" id="new_password" name="new_password" autocomplete="new-password">
+        <br>
+        <label for="confirm_password">Confirm new password</label>
+        <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
+        <br>
+        <button type="submit">Save Changes</button>
+    </form>
+    <p><a href="{{ url_for('index') }}">Back to To-Do List</a></p>
+</body>
+</html>

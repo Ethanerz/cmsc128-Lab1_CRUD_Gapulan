@@ -15,6 +15,9 @@
     <nav>
         {% if session.get('user_id') %}
             <p>Hello, {{ session.get('display_name') }}!</p>
+            <form method="GET" action="{{ url_for('profile') }}">
+                <button type="submit">Profile</button>
+            </form>
             <form method="POST" action="{{ url_for('logout') }}">
                 <button type="submit">Log Out</button>
             </form>
