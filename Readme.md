@@ -8,6 +8,7 @@ The app uses a Flask backend, SQLite database, and a vanilla HTML, CSS, and Java
 
 ## Tech Stack
 
+
 | Layer | Choice |
 | --- | --- |
 | Backend | Python + Flask |
