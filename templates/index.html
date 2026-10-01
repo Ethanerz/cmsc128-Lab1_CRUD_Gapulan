@@ -14,13 +14,15 @@
     {% endwith %}
     <nav>
         {% if session.get('user_id') %}
-            <p>Hello, {{ session.get('display_name') }}!</p>
-            <form method="GET" action="{{ url_for('profile') }}">
-                <button type="submit">Profile</button>
-            </form>
-            <form method="POST" action="{{ url_for('logout') }}">
-                <button type="submit">Log Out</button>
-            </form>
+            <p class="nav-greeting">Hello, {{ session.get('display_name') }}!</p>
+            <div class="nav-user">
+                <form method="GET" action="{{ url_for('profile') }}">
+                    <button type="submit">Profile</button>
+                </form>
+                <form method="POST" action="{{ url_for('logout') }}">
+                    <button type="submit">Log Out</button>
+                </form>
+            </div>
         {% else %}
             <a href="{{ url_for('login') }}">Log In</a>
             <a href="{{ url_for('register') }}">Register</a>
@@ -28,23 +30,19 @@
     </nav>
     <form id="task-form">
 		<input type="text" id="title" placeholder="Task title" required>
-		<br>
 		<input type="datetime-local" id="due_datetime" required>
-		<br>
         <select id="priority" required>
             <option value="" disabled selected>Priority</option>
             <option value="Low">Low</option>
             <option value="Med">Med</option>
             <option value="High">High</option>
         </select>
-		<br>
         <select id="tag" required>
             <option value="" disabled selected>Tag</option>
             <option value="School">School</option>
             <option value="Personal">Personal</option>
             <option value="Others">Others</option>
         </select>
-		<br>
         <button type="submit">Add Task</button>
 	</form>
 	<ul id="task-list">

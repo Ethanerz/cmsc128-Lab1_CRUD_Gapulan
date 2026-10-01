@@ -1,36 +1,303 @@
-body {
-    font-family: sans-serif;
-    max-width: 600px;
-    margin: 40px auto;
+:root {
+    --paper: #f5f3ee;
+    --surface: #ffffff;
+    --ink: #23262b;
+    --ink-soft: #686f77;
+    --line: #e1ddd3;
+    --accent: #33505e;
+    --accent-hover: #26404c;
+    --high: #b3432b;
+    --med: #c98a3e;
+    --low: #4c7a5e;
+    --error: #a8402a;
+    --error-soft: #f7e9e5;
+    --success: #3f6b4f;
+    --success-soft: #e8f0ea;
+    --radius: 10px;
+    --font-display: 'Lora', Georgia, 'Times New Roman', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-#task-form {
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-ui);
+    background: var(--paper);
+    color: var(--ink);
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+    line-height: 1.5;
+}
+
+h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.85rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.5rem;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* flash messages and inline errors */
+[role="status"],
+[role="alert"] {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 6px;
+    margin: 0 0 1.25rem;
+}
+
+[role="status"] {
+    background: var(--success-soft);
+    color: var(--success);
+    border-left: 3px solid var(--success);
+}
+
+[role="alert"] {
+    background: var(--error-soft);
+    color: var(--error);
+    border-left: 3px solid var(--error);
+}
+
+/* top utility bar */
+nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 24px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.75rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.92rem;
 }
 
+nav p {
+    margin: 0;
+    color: var(--ink-soft);
+}
+
+.nav-greeting {
+    flex-basis: 100%;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-user form {
+    margin: 0;
+}
+
+nav button {
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+nav button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* shared form styling */
+label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="datetime-local"],
+select {
+    width: 100%;
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+}
+
+input:focus,
+select:focus,
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+}
+
+button[type="submit"] {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 0.92rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.65rem 1.15rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+button[type="submit"]:hover {
+    background: var(--accent-hover);
+}
+
+.field {
+    margin-bottom: 1.1rem;
+}
+
+/* auth and profile pages: narrow centered card */
+body.page-auth {
+    max-width: 420px;
+    padding-top: 4rem;
+}
+
+body.page-auth form {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+}
+
+body.page-auth form > button[type="submit"] {
+    margin-top: 0.25rem;
+}
+
+body.page-auth > p {
+    margin-top: 1.25rem;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+}
+
+/* task form */
+#task-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+#task-form .field {
+    margin-bottom: 0;
+}
+
+#task-form .field-title {
+    grid-column: 1 / -1;
+}
+
+#task-form button[type="submit"] {
+    justify-self: end;
+    margin-top: 0.15rem;
+}
+
+/* task list */
 #task-list {
     list-style: none;
     padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 .task {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    margin-bottom: 8px;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+    border-radius: 8px;
+}
+
+.task-title {
+    font-weight: 500;
+    flex: 1;
 }
 
 .task.done .task-title {
     text-decoration: line-through;
-    color: #888;
+    color: var(--ink-soft);
 }
 
-.priority-high { border-left: 4px solid #e74c3c; }
-.priority-med  { border-left: 4px solid #f39c12; }
-.priority-low  { border-left: 4px solid #2ecc71; }
+.task button {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+}
+
+.task button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.priority-high {
+    border-left-color: var(--high);
+}
+
+.priority-med {
+    border-left-color: var(--med);
+}
+
+.priority-low {
+    border-left-color: var(--low);
+}
+
+@media (max-width: 480px) {
+    #task-form {
+        grid-template-columns: 1fr;
+    }
+
+    nav {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}
