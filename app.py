@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from datetime import timedelta
+from functools import wraps
 from dotenv import load_dotenv
 from flask import Flask, flash, request, jsonify, render_template, session, redirect, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -18,6 +19,14 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Login required.'}), 401
+        return view(*args, **kwargs)
+    return wrapped_view
+
 @app.route('/')
 def index():
     if 'user_id' not in session:
@@ -25,6 +34,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/tasks', methods=['GET'])
+@login_required
 def get_tasks():
     conn = get_db()
     tasks = conn.execute('SELECT * FROM tasks').fetchall()
@@ -32,6 +42,7 @@ def get_tasks():
     return jsonify([dict(row) for row in tasks])
     
 @app.route('/tasks', methods=['POST'])
+@login_required
 def create_task():
     data = request.get_json()
     conn = get_db()
@@ -44,6 +55,7 @@ def create_task():
     return jsonify({'message': 'Task created'}), 201
     
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
+@login_required
 def update_task(task_id):
     data = request.get_json()
     conn = get_db()
@@ -57,6 +69,7 @@ def update_task(task_id):
     return jsonify({'message': 'Task updated'})
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
+@login_required
 def delete_task(task_id):
     conn = get_db()
     conn.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
@@ -135,7 +148,7 @@ def login():
 def logout():
     session.clear()
     flash('You have been logged out.', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
