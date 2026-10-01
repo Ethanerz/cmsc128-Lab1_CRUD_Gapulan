@@ -2,7 +2,7 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv()
 
@@ -85,6 +85,31 @@ def register():
         return redirect(url_for('login'))
 
     return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            return render_template('login.html', error='Username and password are required.')
+
+        conn = get_db()
+        user = conn.execute(
+            'SELECT id, display_name, password_hash FROM users WHERE username = ?',
+            (username,)
+        ).fetchone()
+        conn.close()
+
+        if user is None or not check_password_hash(user['password_hash'], password):
+            return render_template('login.html', error='Invalid username or password.')
+
+        session['user_id'] = user['id']
+        session['display_name'] = user['display_name']
+        return redirect(url_for('index'))
+
+    return render_template('login.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
