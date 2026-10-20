@@ -48,9 +48,9 @@ def create_task():
     data = request.get_json()
     conn = get_db()
     conn.execute('''
-        INSERT INTO tasks (title, due_datetime, priority, tag, done)
-        VALUES (?, ?, ?, ?, 0)
-    ''', (data['title'], data['due_datetime'], data['priority'], data['tag']))
+        INSERT INTO tasks (title, due_datetime, priority, tag, done, user_id)
+        VALUES (?, ?, ?, ?, 0, ?)
+    ''', (data['title'], data['due_datetime'], data['priority'], data['tag'], session['user_id']))
     conn.commit()
     conn.close()
     return jsonify({'message': 'Task created'}), 201
