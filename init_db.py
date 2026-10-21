@@ -16,6 +16,23 @@ try:
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS collaborative_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS collaborative_list_members (
+            list_id INTEGER NOT NULL REFERENCES collaborative_lists(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            PRIMARY KEY (list_id, user_id)
+        )
+    ''')
+
     task_table = cursor.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks'"
     ).fetchone()
@@ -36,6 +53,26 @@ try:
                     'The existing tasks table has an incompatible user_id schema.'
                 )
 
+        if 'list_id' not in task_columns:
+            cursor.execute('''
+                ALTER TABLE tasks
+                ADD COLUMN list_id INTEGER REFERENCES collaborative_lists(id)
+            ''')
+        else:
+            list_foreign_keys = cursor.execute(
+                'PRAGMA foreign_key_list(tasks)'
+            ).fetchall()
+            has_list_foreign_key = any(
+                row[2] == 'collaborative_lists'
+                and row[3] == 'list_id'
+                and row[4] == 'id'
+                for row in list_foreign_keys
+            )
+            if not has_list_foreign_key:
+                raise RuntimeError(
+                    'The existing tasks table has an incompatible list_id schema.'
+                )
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +82,8 @@ try:
             tag TEXT NOT NULL,
             done INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            user_id INTEGER NOT NULL REFERENCES users(id)
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            list_id INTEGER REFERENCES collaborative_lists(id)
         )
     ''')
     conn.commit()
