@@ -29,6 +29,26 @@
         {% endif %}
     </nav>
     <p id="task-error" role="alert" hidden></p>
+    <p id="list-status" role="status" hidden></p>
+    <section aria-labelledby="list-heading">
+        <h2 id="list-heading">Your lists</h2>
+        <div class="field">
+            <label for="list-selector">Current list</label>
+            <select id="list-selector" data-current-user-id="{{ session['user_id'] }}">
+                <option value="">Personal tasks</option>
+            </select>
+        </div>
+        <form id="list-create-form">
+            <label for="list-name">Create a collaborative list</label>
+            <input type="text" id="list-name" placeholder="List name" required>
+            <button type="submit">Create list</button>
+        </form>
+        <form id="list-invite-form" hidden>
+            <label for="list-invite-identifier">Invite by username or email</label>
+            <input type="text" id="list-invite-identifier" placeholder="Username or email" required>
+            <button type="submit">Invite user</button>
+        </form>
+    </section>
     <form id="task-form">
 		<input type="text" id="title" placeholder="Task title" required>
 		<input type="datetime-local" id="due_datetime" required>

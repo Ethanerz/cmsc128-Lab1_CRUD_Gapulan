@@ -213,6 +213,37 @@ body.page-auth > p {
     margin-bottom: 2rem;
 }
 
+#list-heading {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    margin: 0 0 0.75rem;
+}
+
+#list-selector,
+#list-create-form,
+#list-invite-form {
+    margin-bottom: 1rem;
+}
+
+#list-create-form,
+#list-invite-form {
+    display: grid;
+    gap: 0.65rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+#list-invite-form[hidden] {
+    display: none;
+}
+
+#list-create-form button,
+#list-invite-form button {
+    justify-self: end;
+}
+
 #task-form .field {
     margin-bottom: 0;
 }
