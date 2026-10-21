@@ -28,6 +28,7 @@
             <a href="{{ url_for('register') }}">Register</a>
         {% endif %}
     </nav>
+    <p id="task-error" role="alert" hidden></p>
     <form id="task-form">
 		<input type="text" id="title" placeholder="Task title" required>
 		<input type="datetime-local" id="due_datetime" required>

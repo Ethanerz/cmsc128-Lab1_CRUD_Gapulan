@@ -1,5 +1,33 @@
 const taskForm = document.getElementById('task-form');
 const taskList = document.getElementById('task-list');
+const taskError = document.getElementById('task-error');
+
+function showTaskError(message) {
+    taskError.textContent = message;
+    taskError.hidden = false;
+}
+
+function clearTaskError() {
+    taskError.textContent = '';
+    taskError.hidden = true;
+}
+
+async function checkResponse(response) {
+    if (!response.ok) {
+        let message = `Request failed (${response.status})`;
+        try {
+            const body = await response.json();
+            message = body.error || body.message || message;
+        } catch (error) {
+            if (!(error instanceof SyntaxError)) {
+                throw error;
+            }
+        }
+        throw new Error(message);
+    }
+
+    return response;
+}
 
 function renderTasks(tasks) {
     taskList.innerHTML = ''; // clear before re-rendering
@@ -23,9 +51,14 @@ function renderTasks(tasks) {
 }
 
 async function loadTasks() {
-    const response = await fetch('/tasks');
-    const tasks = await response.json();
-    renderTasks(tasks);
+    try {
+        const response = await checkResponse(await fetch('/tasks'));
+        const tasks = await response.json();
+        renderTasks(tasks);
+        clearTaskError();
+    } catch (error) {
+        showTaskError(`Unable to load tasks: ${error.message}`);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', loadTasks);
@@ -40,14 +73,18 @@ taskForm.addEventListener('submit', async (e) => {
         tag: document.getElementById('tag').value
     };
 
-    await fetch('/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTask)
-    });
+    try {
+        await checkResponse(await fetch('/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newTask)
+        }));
 
-    taskForm.reset();  // clear the form fields
-    loadTasks();       // re-fetch and re-render so the new task shows up
+        taskForm.reset();
+        await loadTasks();
+    } catch (error) {
+        showTaskError(`Unable to create task: ${error.message}`);
+    }
 });
 
 taskList.addEventListener('click', async (e) => {
@@ -56,8 +93,12 @@ taskList.addEventListener('click', async (e) => {
         const taskId = li.dataset.id;
 
         if (confirm('Delete this task?')) {
-            await fetch(`/tasks/${taskId}`, { method: 'DELETE' });
-            loadTasks();
+            try {
+                await checkResponse(await fetch(`/tasks/${taskId}`, { method: 'DELETE' }));
+                await loadTasks();
+            } catch (error) {
+                showTaskError(`Unable to delete task: ${error.message}`);
+            }
         }
     }
 
@@ -72,13 +113,16 @@ taskList.addEventListener('click', async (e) => {
             tag: li.querySelector('.edit-tag').value
         };
 
-        await fetch(`/tasks/${taskId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedTask)
-        });
-
-        loadTasks();
+        try {
+            await checkResponse(await fetch(`/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedTask)
+            }));
+            await loadTasks();
+        } catch (error) {
+            showTaskError(`Unable to update task: ${error.message}`);
+        }
     }
 	if (e.target.classList.contains('edit-btn')) {
     const li = e.target.closest('.task');
@@ -103,4 +147,3 @@ taskList.addEventListener('click', async (e) => {
     `;
 }
 });
-
