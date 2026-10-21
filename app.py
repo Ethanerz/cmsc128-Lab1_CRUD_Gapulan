@@ -38,7 +38,10 @@ def index():
 @login_required
 def get_tasks():
     conn = get_db()
-    tasks = conn.execute('SELECT * FROM tasks').fetchall()
+    tasks = conn.execute(
+        'SELECT * FROM tasks WHERE user_id = ?',
+        (session['user_id'],)
+    ).fetchall()
     conn.close()
     return jsonify([dict(row) for row in tasks])
     
@@ -63,8 +66,8 @@ def update_task(task_id):
     conn.execute('''
         UPDATE tasks
         SET title = ?, due_datetime = ?, priority = ?, tag = ?
-        WHERE id = ?
-    ''', (data['title'], data['due_datetime'], data['priority'], data['tag'], task_id))
+        WHERE id = ? AND user_id = ?
+    ''', (data['title'], data['due_datetime'], data['priority'], data['tag'], task_id, session['user_id']))
     conn.commit()
     conn.close()
     return jsonify({'message': 'Task updated'})
@@ -73,7 +76,10 @@ def update_task(task_id):
 @login_required
 def delete_task(task_id):
     conn = get_db()
-    conn.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
+    conn.execute(
+        'DELETE FROM tasks WHERE id = ? AND user_id = ?',
+        (task_id, session['user_id'])
+    )
     conn.commit()
     conn.close()
     return jsonify({'message': 'Task deleted'})
