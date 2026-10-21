@@ -28,61 +28,314 @@ def login_required(view):
         return view(*args, **kwargs)
     return wrapped_view
 
+@app.route('/lists', methods=['GET'])
+@login_required
+def get_lists():
+    conn = get_db()
+    try:
+        lists = conn.execute('''
+            SELECT DISTINCT collaborative_lists.id, collaborative_lists.name,
+                   collaborative_lists.owner_id, collaborative_lists.created_at
+            FROM collaborative_lists
+            LEFT JOIN collaborative_list_members
+                ON collaborative_list_members.list_id = collaborative_lists.id
+            WHERE collaborative_lists.owner_id = ?
+               OR collaborative_list_members.user_id = ?
+            ORDER BY collaborative_lists.id
+        ''', (session['user_id'], session['user_id'])).fetchall()
+        return jsonify([dict(row) for row in lists])
+    finally:
+        conn.close()
+
+@app.route('/lists', methods=['POST'])
+@login_required
+def create_list():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required.'}), 400
+
+    name = data.get('name')
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({'error': 'List name is required.'}), 400
+
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            'INSERT INTO collaborative_lists (name, owner_id) VALUES (?, ?)',
+            (name.strip(), session['user_id'])
+        )
+        list_id = cursor.lastrowid
+        conn.execute(
+            'INSERT INTO collaborative_list_members (list_id, user_id) VALUES (?, ?)',
+            (list_id, session['user_id'])
+        )
+        conn.commit()
+        created_list = conn.execute(
+            '''SELECT id, name, owner_id, created_at
+               FROM collaborative_lists WHERE id = ?''',
+            (list_id,)
+        ).fetchone()
+        return jsonify(dict(created_list)), 201
+    finally:
+        conn.close()
+
+@app.route('/lists/<int:list_id>/members', methods=['POST'])
+@login_required
+def add_list_member(list_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required.'}), 400
+
+    identifiers = [
+        (field, data.get(field).strip())
+        for field in ('username', 'email')
+        if isinstance(data.get(field), str) and data.get(field).strip()
+    ]
+    if len(identifiers) != 1:
+        return jsonify({'error': 'Provide exactly one username or email.'}), 400
+    identifier_type, identifier = identifiers[0]
+
+    conn = get_db()
+    try:
+        collaborative_list = conn.execute(
+            'SELECT id, owner_id FROM collaborative_lists WHERE id = ?',
+            (list_id,)
+        ).fetchone()
+        if collaborative_list is None:
+            return jsonify({'error': 'List not found.'}), 404
+        if collaborative_list['owner_id'] != session['user_id']:
+            return jsonify({'error': 'List not found.'}), 404
+
+        user_columns = {
+            row['name'] for row in conn.execute('PRAGMA table_info(users)')
+        }
+        lookup_column = (
+            'email'
+            if identifier_type == 'email' and 'email' in user_columns
+            else 'username'
+        )
+        invited_user = conn.execute(
+            f'SELECT id FROM users WHERE {lookup_column} = ?',
+            (identifier,)
+        ).fetchone()
+        if invited_user is None:
+            return jsonify({'error': 'User not found.'}), 404
+
+        cursor = conn.execute(
+            '''INSERT OR IGNORE INTO collaborative_list_members (list_id, user_id)
+               VALUES (?, ?)''',
+            (list_id, invited_user['id'])
+        )
+        conn.commit()
+        status = 201 if cursor.rowcount else 200
+        message = 'Member added.' if cursor.rowcount else 'User is already a member.'
+        return jsonify({
+            'message': message,
+            'list_id': list_id,
+            'user_id': invited_user['id']
+        }), status
+    finally:
+        conn.close()
+
 @app.route('/')
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
 
+def parse_list_id(value):
+    if isinstance(value, int) and not isinstance(value, bool):
+        list_id = value
+    elif isinstance(value, str) and value.isdecimal():
+        try:
+            list_id = int(value)
+        except ValueError:
+            return None
+    else:
+        return None
+    return list_id if list_id > 0 else None
+
+def user_can_access_list(conn, list_id, user_id):
+    return conn.execute('''
+        SELECT 1
+        FROM collaborative_lists
+        LEFT JOIN collaborative_list_members
+            ON collaborative_list_members.list_id = collaborative_lists.id
+        WHERE collaborative_lists.id = ?
+          AND (
+              collaborative_lists.owner_id = ?
+              OR collaborative_list_members.user_id = ?
+          )
+    ''', (list_id, user_id, user_id)).fetchone() is not None
+
 @app.route('/tasks', methods=['GET'])
 @login_required
 def get_tasks():
     conn = get_db()
-    tasks = conn.execute(
-        'SELECT * FROM tasks WHERE user_id = ?',
-        (session['user_id'],)
-    ).fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in tasks])
+    try:
+        requested_list_id = request.args.get('list_id')
+        if requested_list_id is None:
+            tasks = conn.execute(
+                'SELECT * FROM tasks WHERE user_id = ? AND list_id IS NULL',
+                (session['user_id'],)
+            ).fetchall()
+        else:
+            list_id = parse_list_id(requested_list_id)
+            if list_id is None:
+                return jsonify({'error': 'Invalid list ID.'}), 400
+            if not user_can_access_list(conn, list_id, session['user_id']):
+                return jsonify({'error': 'List not found.'}), 404
+            tasks = conn.execute(
+                'SELECT * FROM tasks WHERE list_id = ? ORDER BY id',
+                (list_id,)
+            ).fetchall()
+        return jsonify([dict(row) for row in tasks])
+    finally:
+        conn.close()
     
 @app.route('/tasks', methods=['POST'])
 @login_required
 def create_task():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required.'}), 400
+
+    title = data.get('title')
+    priority = data.get('priority')
+    tag = data.get('tag')
+    due_datetime = data.get('due_datetime')
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({'error': 'Task title is required.'}), 400
+    if not isinstance(priority, str) or not isinstance(tag, str):
+        return jsonify({'error': 'Task priority and tag are required.'}), 400
+
+    list_id = None
+    if 'list_id' in data and data['list_id'] is not None:
+        list_id = parse_list_id(data['list_id'])
+        if list_id is None:
+            return jsonify({'error': 'Invalid list ID.'}), 400
+
     conn = get_db()
-    conn.execute('''
-        INSERT INTO tasks (title, due_datetime, priority, tag, done, user_id)
-        VALUES (?, ?, ?, ?, 0, ?)
-    ''', (data['title'], data['due_datetime'], data['priority'], data['tag'], session['user_id']))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Task created'}), 201
+    try:
+        if list_id is not None and not user_can_access_list(
+            conn, list_id, session['user_id']
+        ):
+            return jsonify({'error': 'List not found.'}), 404
+
+        cursor = conn.execute('''
+            INSERT INTO tasks
+                (title, due_datetime, priority, tag, done, user_id, list_id)
+            VALUES (?, ?, ?, ?, 0, ?, ?)
+        ''', (
+            title.strip(),
+            due_datetime,
+            priority,
+            tag,
+            session['user_id'],
+            list_id
+        ))
+        conn.commit()
+        return jsonify({'message': 'Task created', 'id': cursor.lastrowid}), 201
+    finally:
+        conn.close()
     
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
 @login_required
 def update_task(task_id):
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required.'}), 400
+
+    title = data.get('title')
+    priority = data.get('priority')
+    tag = data.get('tag')
+    due_datetime = data.get('due_datetime')
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({'error': 'Task title is required.'}), 400
+    if not isinstance(priority, str) or not isinstance(tag, str):
+        return jsonify({'error': 'Task priority and tag are required.'}), 400
+
     conn = get_db()
-    conn.execute('''
-        UPDATE tasks
-        SET title = ?, due_datetime = ?, priority = ?, tag = ?
-        WHERE id = ? AND user_id = ?
-    ''', (data['title'], data['due_datetime'], data['priority'], data['tag'], task_id, session['user_id']))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Task updated'})
+    try:
+        cursor = conn.execute('''
+            UPDATE tasks
+            SET title = ?, due_datetime = ?, priority = ?, tag = ?
+            WHERE id = ?
+              AND (
+                  (list_id IS NULL AND user_id = ?)
+                  OR (
+                      list_id IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM collaborative_lists
+                          LEFT JOIN collaborative_list_members
+                              ON collaborative_list_members.list_id =
+                                 collaborative_lists.id
+                          WHERE collaborative_lists.id = tasks.list_id
+                            AND (
+                                collaborative_lists.owner_id = ?
+                                OR collaborative_list_members.user_id = ?
+                            )
+                      )
+                  )
+              )
+        ''', (
+            title.strip(),
+            due_datetime,
+            priority,
+            tag,
+            task_id,
+            session['user_id'],
+            session['user_id'],
+            session['user_id']
+        ))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({'error': 'Task not found.'}), 404
+        conn.commit()
+        return jsonify({'message': 'Task updated'})
+    finally:
+        conn.close()
 
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
 @login_required
 def delete_task(task_id):
     conn = get_db()
-    conn.execute(
-        'DELETE FROM tasks WHERE id = ? AND user_id = ?',
-        (task_id, session['user_id'])
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Task deleted'})
+    try:
+        cursor = conn.execute('''
+            DELETE FROM tasks
+            WHERE id = ?
+              AND (
+                  (list_id IS NULL AND user_id = ?)
+                  OR (
+                      list_id IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM collaborative_lists
+                          LEFT JOIN collaborative_list_members
+                              ON collaborative_list_members.list_id =
+                                 collaborative_lists.id
+                          WHERE collaborative_lists.id = tasks.list_id
+                            AND (
+                                collaborative_lists.owner_id = ?
+                                OR collaborative_list_members.user_id = ?
+                            )
+                      )
+                  )
+              )
+        ''', (
+            task_id,
+            session['user_id'],
+            session['user_id'],
+            session['user_id']
+        ))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({'error': 'Task not found.'}), 404
+        conn.commit()
+        return jsonify({'message': 'Task deleted'})
+    finally:
+        conn.close()
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
